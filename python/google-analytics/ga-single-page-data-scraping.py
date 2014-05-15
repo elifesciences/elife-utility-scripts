@@ -25,7 +25,7 @@ def build_service():
 
     """
 
-    GA_CLIENT_ID=SETTINGS.GA_CLIENT_ID 
+    GA_CLIENT_ID=SETTINGS.GA_CLIENT_ID
     GA_CLIENT_SECRET=SETTINGS.GA_CLIENT_SECRET
 
     # <codecell>
@@ -111,6 +111,20 @@ def get_date_id(article_info):
 def get_article_id_from_article_string(article_string):
     return article_string.split(".")[1]
 
+def get_and_write_week_data(article_id, pub_date):
+    data = article_visits_week_since_pub(service, profile_id, article_id, pub_date)
+    print "retreived week data for" + article_id
+    week_data = open("week.dat", "a")
+    week_data.write(article_id+"\t"+pub_date+"\t"+str(data)+"\n")
+    week_data.close()
+
+def get_and_write_3_day_data(article_id, pub_date):
+    data = article_visits_3_days_since_pub(service, profile_id, article_id, pub_date)
+    print "retreived 3 day data for" + article_id
+    three_days_data = open("3days.dat", "a")
+    three_days_data.write(article_id+"\t"+pub_date+"\t"+str(data)+"\n")
+    three_days_data.close()
+
 article_date_type = open(ARTICLE_LIST, "r").readlines()
 article_date_type_tuple = [x.split() for x in article_date_type]
 article_id_dates = [get_date_id(x) for x in article_date_type_tuple]
@@ -118,12 +132,18 @@ article_id_dates = [get_date_id(x) for x in article_date_type_tuple]
 profile_id = "67087466" # HW
 service = build_service()
 
-for article_date in article_id_dates:
+while article_id_dates:
+    article_date = article_id_dates[0]
     article_id = get_article_id_from_article_string(article_date[0])
     pub_date = article_date[1]
     time.sleep(1)
-    data = article_visits_week_since_pub(service, profile_id, article_id, pub_date)
-    print article_id, pub_date, data
+    try:
+        get_and_write_week_data(article_id, pub_date)
+        get_and_write_3_day_data(article_id, pub_date)
+        article_id_dates.remove(article_date)
+    except:
+        print article_id + " didn't work, going to try again"
+    print str(len(article_id_dates)) + " records left to retreive"
 
 # days_since_publication = 7
 # results = article_visits_days_since_pub(service, profile_id, article_id, pub_date, days_since_publication)
