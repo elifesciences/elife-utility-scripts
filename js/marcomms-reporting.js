@@ -11,7 +11,7 @@ function runDemo() {
     // var firstProfile = getFirstProfile();
     // var results = getReportDataForProfile(firstProfile);
     //
-    // do the monthly summaries
+    // do the monthly summares
     updatePageViews();
     // runSummaries();
   } catch(error) {
@@ -19,6 +19,9 @@ function runDemo() {
   }
 }
 
+/*
+ * add an `Analyse` menu to the spreadsheet.
+ */
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   // Or DocumentApp or FormApp.
@@ -30,14 +33,24 @@ function onOpen() {
   .addToUi();
 }
 
-
+/*
+ * Get all DOIs from crossref, with dates and titles
+ * add these to the first sheet
+*  update the second sheet with the eid and published date
+ */
 function updateFromFromCrossref(){
   var crossref_sheet_index = 0;
-  //var articles = eLifeFromCrossref();
-  // outputToSpreadsheet(articles, crossref_sheet_index);
+  var articles = eLifeFromCrossref();
+  outputToSpreadsheet(articles, crossref_sheet_index);
   updateReportingSheetWithNewEIDS();
 }
 
+/*
+ * get a set of count bins from the settings sheet
+ * generate montly summaries for how many articles had pagesviews that fall into one of the bins
+ * output these summareis to a sheet
+ * output a normalised vector for these summaries to another sheet
+ */
 function runSummaries(){
   var summary_sheet_index = 2;
   var norm_summary_sheet_index = 3;
@@ -48,7 +61,13 @@ function runSummaries(){
   outputDictToSpreadsheet(normalised_month_summaries, norm_summary_sheet_index);
 }
 
-
+/*
+ * deletes entires in the montly summary sheets
+ *
+ * sometimes we will want to bin our resutls into fewer bins.
+ * when we do this the new summary data will not overwrite all of the old data so this is a convineinece function to create some empty sheets ahead of time.
+ *
+ */
 function cleanupSummaries(){
   var summary_sheet_index = 2;
   var norm_summary_sheet_index = 3;
@@ -56,13 +75,21 @@ function cleanupSummaries(){
   clearSheet(norm_summary_sheet_index);
 }
 
+/*
+ * given a sheet id, empty the sheet
+ */
 function clearSheet(sheetID) {
   var ss = SpreadsheetApp.getActiveSpreadsheet() ; // overwrite existing active sheet, use .insertSheet() to add a new sheet.
   var sheet = ss.getSheets()[sheetID];
   sheet.clear();
 }
 
-
+/*
+ * Add all of the numbers of a one dimensional array together
+ *
+ * @param(Array) vector
+ * @return(Float) sum
+ */
 function sumVector(vector) {
   var sum = 0.0;
   for (var v in vector) {
@@ -73,6 +100,12 @@ function sumVector(vector) {
   return sum;
 }
 
+/*
+ * Return the norm of a vector
+ *
+ * @param(Array) vector
+ * @return(Array) norm_vector
+ */
 function normaliseVector (vector) {
   norm_vector = [];
   var sum = sumVector(vector);
@@ -86,6 +119,12 @@ function normaliseVector (vector) {
   return norm_vector;
 }
 
+/*
+ * Return a normalised version of our monthly summaries
+ *
+ * @param(Array) monthly_summaries
+ * @return(Array) normalised_monthly_summaries
+ */
 function normaliseMonthlySummaries (monthly_summaries) {
   var normalised_monthly_summaries = {};
   var keys = Object.keys(monthly_summaries);
@@ -101,11 +140,13 @@ function normaliseMonthlySummaries (monthly_summaries) {
   return normalised_monthly_summaries;
 }
 
-
 /*
  * via David - takes an array and returns a null array that is one item longer than the original
  *
  * e.g. [a,b,c,d] -> [0,0,0,0,0]
+ *
+ * @param(Array) arr
+ * @return(Array) zeroedArray
  */
 var makeZeroedArray = function (arr) {
   var zeroedArray = [];
@@ -117,13 +158,9 @@ var makeZeroedArray = function (arr) {
 }
 
 /*
- *
  * run over all month - sessions pairs
- *
  * compare the given session to a set of bins
- *
  * generate a map of the month to the distribution of amount of items that fall within a given value bin
- *
  *
  * e.g. input: 2012-01: 23, 2012-01: 24, 2012-02: 1, 2012-02: 22
  * bins: [10, 20, 30]
@@ -131,34 +168,30 @@ var makeZeroedArray = function (arr) {
  * output is:
  * [2012-01: [0, 2, 0], 2012-02: [1,1,0]]
  *
- *
+ * @param(Array) session_bins
+ * @return(Array) month_count_bins - an array of dicts
  */
 function generateMonthVectors (session_bins) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet() ; // overwrite existing active sheet, use .insertSheet() to add a new sheet.
-  var sheet = ss.getSheets()[1];
+  var ss = SpreadsheetApp.getActiveSpreadsheet() ;
+  var sheet = ss.getSheets()[1]; // TODO: remove hardcoded reference to sheet
   var dates = getSecondCol(sheet);
   var sessions = getThirdCol(sheet);
   var month_count_bins = {};
-
   // var month_count_vector = new Array(session_bins.length).fill(0);
   for (var row_index in dates) {
     if(dates.hasOwnProperty(row_index)) {
-
       var session = sessions[row_index];
-      if (session != "no data" && session != "undefined") { // skip entries with no data
-
+      if (session != "no data" && session != "undefined") { // proceed only if we have data
         var date = dates[row_index];
         var month_year = date.split("-")[0] + "-" + date.split("-")[1];
-
+        var keys = Object.keys(month_count_bins);
         // create or ensure, that a vector exists for the date year key
-        var keys = Object.keys(month_count_bins); // do the adding in here!
         if (keys.indexOf(month_year) > -1) {
-          Logger.log("we have this already");   // we already have this key
+          Logger.log("we have this already");   // we already have this key TODO: be more elegant that writing to the log
         } else {
           var new_null_array = makeZeroedArray(session_bins);
           month_count_bins[month_year] = new_null_array; // e.g. {2014-02: [0,0,0,0,0,0,0,0,0,0,0]}
         }
-
         var session_bin_index = get_session_bin_index(session, session_bins);
         var current_count = month_count_bins[month_year][session_bin_index];
         month_count_bins[month_year][session_bin_index] = current_count + 1; // increment the count for the bin item
@@ -170,23 +203,22 @@ function generateMonthVectors (session_bins) {
   return month_count_bins;
 }
 
-
 /*
- *
- * take in a value and an array,
- * return the index of the array where the value is lower than the array amount
- *
+ * take in a value and an array of values ,
+ * return the index of the array where the value is lower than the value at that array index
  * if the value is higher than any item in the array, return an index equal to the number of items in the array
  *
  * e.g.
- *
- * value, [array] - returns -> index 1
+ * value, [array] - returns -> index
  *
  * 5, [10, 20, 30] -> 0
  * 15, [10, 20, 30] -> 1
  * 25, [10, 20, 30] -> 2
  * 35, [10, 20, 30] -> 3
-*/
+ *
+ * @param(Float, Array) sessions, session_bins
+ * @return(Float) max_index
+ */
 function get_session_bin_index (sessions, session_bins) {
   for (var index in session_bins) {
     if(session_bins.hasOwnProperty(index)) {
@@ -199,7 +231,9 @@ function get_session_bin_index (sessions, session_bins) {
   return max_index;
 }
 
-
+/*
+ * Split date string that contain time info, and return only the yyyy-MM-dd part of the date
+ */
 function getMonthYearFromDate (results_with_pubdates) {
   var pub_date_month_year = date.split("T")[0];
   return pub_date_month_year;
@@ -220,7 +254,6 @@ function eidFromDOI(doi) {
   var eid = "e" + doi_parts[doi_parts.length-1];
   return eid;
 }
-
 
 /*
  * from http://stackoverflow.com/questions/6882104/faster-way-to-find-the-first-empty-row
@@ -275,7 +308,9 @@ function mergePOAandVOR(results) {
  * /content/early/2015/08/06/eLife.05563 will return 05563
  * /content/4/e05005 will return 05005
  * /content/4/e09560.full will return 09560
+ * /content/4/e09560.short will return 09560
  * /content/4/e09560/abstract-1 will return 09560
+ * /content/4/e09560/media-1 will return 09560
  *
  * @param {String} articlePath
  * @return {String} eid
