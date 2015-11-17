@@ -86,6 +86,16 @@ def article_visits_days_since_pub(service, profile_id, article_id, pub_date, day
     data = article_visits_in_date_range(service, profile_id, article_id, start_date, end_date)
     return data
 
+def article_visits_days_tail(service, profile_id, article_id, pub_date):
+    days_since_pub = 35 # we use 35 days out as the start date 
+    start_date, end_date = get_dates(pub_date, days_since_pub)
+    start_date_tail = end_date
+    days_since_pub = 49 # we use 49 days out as the end date 
+    start_date, end_date = get_dates(pub_date, days_since_pub)
+    end_date_tail = end_date
+    data = article_visits_in_date_range(service, profile_id, article_id, start_date_tail, end_date_tail)
+    return data
+
 def article_visits_3_days_since_pub(service, profile_id, article_id, pub_date):
     days_since_pub = 2  # we look two days ahead, and so get three full days of data
     data = article_visits_days_since_pub(service, profile_id, article_id, pub_date, days_since_pub)
@@ -125,6 +135,13 @@ def get_and_write_3_day_data(article_id, pub_date):
     three_days_data.write(article_id+"\t"+pub_date+"\t"+str(data)+"\n")
     three_days_data.close()
 
+def get_and_write_tail_data(article_id, pub_date):
+    data = article_visits_days_tail(service, profile_id, article_id, pub_date)
+    print "retreived 3 day data for" + article_id
+    tail_data = open("article_tail.dat", "a")
+    tail_data.write(article_id+"\t"+pub_date+"\t"+str(data)+"\n")
+    tail_data.close()
+
 article_date_type = open(ARTICLE_LIST, "r").readlines()
 article_date_type_tuple = [x.split() for x in article_date_type]
 article_id_dates = [get_date_id(x) for x in article_date_type_tuple]
@@ -138,8 +155,9 @@ while article_id_dates:
     pub_date = article_date[1]
     time.sleep(1)
     try:
-        get_and_write_week_data(article_id, pub_date)
-        get_and_write_3_day_data(article_id, pub_date)
+        # get_and_write_week_data(article_id, pub_date)
+        # get_and_write_3_day_data(article_id, pub_date)
+        get_and_write_tail_data(article_id, pub_date)
         article_id_dates.remove(article_date)
     except:
         print article_id + " didn't work, going to try again"
